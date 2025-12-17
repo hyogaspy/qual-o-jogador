@@ -2,127 +2,96 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Futdle Elite - SoccerWiki</title>
+    <title>Futdle Elite</title>
     <style>
-        :root { --green: #00d24d; --blue: #0046c7; --dark: #050a15; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; text-align: center; margin: 0; padding: 20px; }
-        .container { max-width: 450px; margin: 0 auto; }
-        .header { margin-bottom: 30px; }
-        .logo { font-size: 2.5rem; font-weight: 900; color: var(--green); text-shadow: 0 0 15px rgba(0,210,77,0.3); }
+        :root { --green: #00d24d; --red: #ff4b4b; --blue: #0046c7; --bg: #040816; --card: #101a35; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        input { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #1c2c54; background: #101a35; color: white; font-size: 16px; margin-bottom: 20px; box-sizing: border-box; }
         
-        #status-box { background: #101a35; padding: 15px; border-radius: 12px; border: 1px solid #1c2c54; margin-bottom: 20px; }
+        .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 8px; animation: fadeIn 0.5s ease; }
+        .box { background: var(--card); padding: 15px 5px; border-radius: 5px; font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; min-height: 50px; border: 1px solid #1c2c54; }
         
-        .search-area { display: none; margin-bottom: 20px; }
-        input { 
-            width: 100%; padding: 16px; border-radius: 12px; border: 2px solid #1c2c54;
-            background: #0a1126; color: white; font-size: 16px; box-sizing: border-box;
-        }
-
-        .player-card {
-            background: #101a35; border-radius: 12px; padding: 12px; margin-bottom: 10px;
-            display: flex; align-items: center; border-left: 5px solid #2a3b63;
-            animation: fadeIn 0.3s ease;
-        }
-        .player-card.correct { border-left-color: var(--green); background: #0d2b21; }
-        .player-img { width: 55px; height: 55px; border-radius: 10px; background: #1c2c54; margin-right: 15px; }
+        .correct { background: var(--green) !important; color: black; }
+        .wrong { background: var(--red) !important; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+        .header-row { font-size: 10px; color: #8a99b8; text-transform: uppercase; margin-bottom: 5px; border: none; background: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <div class="logo">FUTDLE</div>
-        <p>Modo Elite (Base SoccerWiki)</p>
-    </div>
+    <h1 style="color: var(--green)">FUTDLE ELITE</h1>
+    <p id="status">Carregando craques...</p>
 
-    <div id="status-box">⏳ Carregando base de dados pesada...</div>
-
-    <div class="search-area" id="ui">
-        <input type="text" id="busca" list="sugestoes" placeholder="Digite o nome do craque..." oninput="processarBusca()">
+    <div id="ui" style="display:none;">
+        <input type="text" id="busca" list="sugestoes" placeholder="Chute um jogador de elite..." oninput="checarInput()">
         <datalist id="sugestoes"></datalist>
+        
+        <div class="row header-row">
+            <div>Jogador</div><div>País</div><div>Time</div><div>Posição</div><div>Idade</div><div>Nº</div>
+        </div>
+        <div id="resultados"></div>
     </div>
-
-    <div id="resultados"></div>
 </div>
 
 <script>
-    const ARQUIVO = 'jogadores.json';
-    let todosJogadores = [];
-    let filtradosElite = [];
+    let jogadores = [];
     let secreto = null;
 
-    async function carregar() {
+    async function init() {
         try {
-            const resp = await fetch(ARQUIVO);
-            const data = await resp.json();
-            todosJogadores = data.PlayerData;
+            const r = await fetch('jogadores.json');
+            const d = await r.json();
+            jogadores = d.PlayerData;
+            secreto = jogadores[Math.floor(Math.random() * jogadores.length)];
+            
+            const dl = document.getElementById('sugestoes');
+            jogadores.forEach(j => {
+                let o = document.createElement('option');
+                o.value = j.Nome;
+                dl.appendChild(o);
+            });
 
-            // FILTRO INTELIGENTE: Pegamos apenas jogadores que tenham imagem e 
-            // limitamos a busca para os 1000 primeiros da lista (onde costumam estar os melhores)
-            filtradosElite = todosJogadores.filter(j => j.ImageURL && j.ImageURL.includes('.png')).slice(0, 1000);
-
-            // Sorteia o secreto entre os 200 primeiros da lista (a elite da elite)
-            secreto = filtradosElite[Math.floor(Math.random() * 200)];
-
-            document.getElementById('status-box').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
             document.getElementById('ui').style.display = 'block';
-        } catch (e) {
-            document.getElementById('status-box').innerHTML = "❌ Erro ao ler arquivo jogadores.json";
+        } catch (e) { document.getElementById('status').innerText = "Erro ao carregar JSON"; }
+    }
+
+    function checarInput() {
+        const val = document.getElementById('busca').value;
+        const j = jogadores.find(p => p.Nome === val);
+        if (j) {
+            processar(j);
+            document.getElementById('busca').value = "";
         }
     }
 
-    // Função de busca que não trava o navegador
-    function processarBusca() {
-        const input = document.getElementById('busca');
-        const valor = input.value.trim().toLowerCase();
-        const datalist = document.getElementById('sugestoes');
+    function processar(chute) {
+        if (document.getElementById('c-'+chute.ID)) return;
+        const res = document.getElementById('resultados');
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.id = 'c-' + chute.ID;
 
-        if (valor.length < 3) {
-            datalist.innerHTML = "";
-            return;
-        }
+        const compare = (campo, alvo) => chute[campo] === secreto[campo] ? 'correct' : 'wrong';
+        const setaIdade = chute.Idade < secreto.Idade ? " ⬆️" : (chute.Idade > secreto.Idade ? " ⬇️" : "");
+        const setaNum = chute.Numero < secreto.Numero ? " ⬆️" : (chute.Numero > secreto.Numero ? " ⬇️" : "");
 
-        // Busca na base inteira, mas só mostra 8 sugestões (para ser rápido)
-        const matches = todosJogadores
-            .filter(j => (j.Forename + " " + j.Surname).toLowerCase().includes(valor))
-            .slice(0, 8);
-
-        datalist.innerHTML = matches.map(j => `<option value="${j.Forename} ${j.Surname}">`).join('');
-
-        // Se o nome bater exatamente, chuta
-        const exato = todosJogadores.find(j => (j.Forename + " " + j.Surname).toLowerCase() === valor);
-        if (exato) {
-            exibir(exato);
-            input.value = "";
-            datalist.innerHTML = "";
-        }
-    }
-
-    function exibir(chute) {
-        if (document.getElementById('p-' + chute.ID)) return;
-
-        const lista = document.getElementById('resultados');
-        const acertou = chute.ID === secreto.ID;
-        const card = document.createElement('div');
-        card.id = 'p-' + chute.ID;
-        card.className = 'player-card' + (acertou ? ' correct' : '');
-        
-        card.innerHTML = `
-            <img src="${chute.ImageURL}" class="player-img" onerror="this.src='https://via.placeholder.com/55?text=⚽'">
-            <div style="flex-grow:1; text-align:left;">
-                <span style="display:block; font-weight:bold">${chute.Forename} ${chute.Surname}</span>
-                <span style="font-size:12px; color:#8a99b8">ID: ${chute.ID}</span>
-            </div>
-            <div style="font-size: 20px;">${acertou ? '🎯' : '❌'}</div>
+        row.innerHTML = `
+            <div class="box">${chute.Nome}</div>
+            <div class="box ${compare('Nacionalidade')}">${chute.Nacionalidade}</div>
+            <div class="box ${compare('Time')}">${chute.Time}</div>
+            <div class="box ${compare('Posicao')}">${chute.Posicao}</div>
+            <div class="box ${compare('Idade')}">${chute.Idade}${setaIdade}</div>
+            <div class="box ${compare('Numero')}">${chute.Numero}${setaNum}</div>
         `;
 
-        lista.insertBefore(card, lista.firstChild);
-        if (acertou) alert("GOLAÇO! Você encontrou o jogador!");
+        res.insertBefore(row, res.firstChild);
+        if (chute.ID === secreto.ID) alert("GOLAÇO!");
     }
 
-    window.onload = carregar;
+    window.onload = init;
 </script>
 </body>
 </html>
