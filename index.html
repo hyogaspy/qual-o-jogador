@@ -124,7 +124,8 @@
     ];
 
     // DEFINIR O JOGADOR DO DIA (Neste exemplo, é o Vini Jr)
-    const SECRETO = JOGADORES[0];
+    //const SECRETO = JOGADORES[0];
+    const SECRETO = JOGADORES[Math.floor(Math.random() * JOGADORES.length)];
 
     // Preencher o datalist com os nomes para o usuário escolher
     const datalist = document.getElementById('listaJogadores');
