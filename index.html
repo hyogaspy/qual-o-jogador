@@ -2,181 +2,126 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Futdle - Jogador Secreto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futdle - SoccerWiki</title>
     <style>
-        body { font-family: 'Arial', sans-serif; background: #0a0a0a; color: white; text-align: center; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        input { padding: 12px; width: 250px; border-radius: 5px; border: 1px solid #333; background: #1a1a1a; color: white; }
-        button { padding: 12px 20px; background: #00ff41; color: black; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        
-        /* Grid das Categorias */
-        .header-grid, .player-row { 
-            display: grid; 
-            grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 1fr; 
-            gap: 8px; margin-top: 10px; 
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #121212; color: white; text-align: center; padding: 20px; 
         }
+        .container { max-width: 600px; margin: 0 auto; }
         
-        .box { 
-            background: #1e1e1e; padding: 15px 5px; border-radius: 4px; 
-            font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            border: 1px solid #333; min-height: 40px;
+        /* Painel de Status */
+        #status { 
+            background: #222; padding: 10px; border-radius: 8px; 
+            margin-bottom: 20px; font-size: 14px; color: #00ff41;
+            border: 1px solid #333;
         }
 
-        /* Cores de Comparação */
-        .correct { background-color: #2e7d32 !important; border-color: #4caf50; }
-        .wrong { background-color: #c62828 !important; border-color: #f44336; }
+        .search-area { margin-bottom: 30px; }
+        input { 
+            padding: 12px; width: 60%; border-radius: 5px; border: 1px solid #333; 
+            background: #1a1a1a; color: white; outline: none;
+        }
+        button { 
+            padding: 12px 20px; border-radius: 5px; background: #00ff41; 
+            color: black; border: none; cursor: pointer; font-weight: bold; 
+        }
+
+        .player-card {
+            background: #1e1e1e; padding: 15px; margin-top: 10px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-left: 5px solid #444; animation: slideIn 0.3s ease;
+        }
+        .correct { border-left-color: #00ff41; }
+        .player-img { width: 50px; height: 50px; border-radius: 50%; background: #333; }
+        
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Futdle ⚽</h1>
-    <p>Adivinhe o craque do dia!</p>
+    <h1>FUTDLE ⚽</h1>
+    <div id="status">Carregando base de dados...</div>
 
-    <input type="text" id="inputJogador" list="listaJogadores" placeholder="Ex: Neymar, Messi...">
-    <datalist id="listaJogadores"></datalist>
-    <button onclick="chutar()">Chutar</button>
-
-    <div style="margin-top: 30px;">
-        <div class="header-grid">
-            <div>Nome</div>
-            <div>Nac.</div>
-            <div>Liga</div>
-            <div>Time</div>
-            <div>Pos.</div>
-            <div>Idade</div>
-        </div>
-        <div id="resultados"></div>
+    <div id="game-ui" style="display:none;" class="search-area">
+        <input type="text" id="inputJogador" list="listaSugestoes" placeholder="Digite o nome do jogador...">
+        <datalist id="listaSugestoes"></datalist>
+        <button onclick="fazerPalpite()">Chutar</button>
     </div>
+
+    <div id="listaResultados"></div>
 </div>
 
 <script>
-    // BANCO DE DADOS MANUAL (Você pode adicionar quantos quiser aqui!)
-    const JOGADORES = [
-        // --- PREMIER LEAGUE ---
-        { nome: "Erling Haaland", nac: "Noruega", liga: "Premier League", time: "Man. City", pos: "ATA", idade: 24 },
-        { nome: "Kevin De Bruyne", nac: "Bélgica", liga: "Premier League", time: "Man. City", pos: "MEI", idade: 33 },
-        { nome: "Phil Foden", nac: "Inglaterra", liga: "Premier League", time: "Man. City", pos: "ATA", idade: 24 },
-        { nome: "Rodri", nac: "Espanha", liga: "Premier League", time: "Man. City", pos: "MEI", idade: 28 },
-        { nome: "Mohamed Salah", nac: "Egito", liga: "Premier League", time: "Liverpool", pos: "ATA", idade: 32 },
-        { nome: "Virgil van Dijk", nac: "Holanda", liga: "Premier League", time: "Liverpool", pos: "ZAG", idade: 33 },
-        { nome: "Alisson Becker", nac: "Brasil", liga: "Premier League", time: "Liverpool", pos: "GOL", idade: 31 },
-        { nome: "Bukayo Saka", nac: "Inglaterra", liga: "Premier League", time: "Arsenal", pos: "ATA", idade: 22 },
-        { nome: "Martin Odegaard", nac: "Noruega", liga: "Premier League", time: "Arsenal", pos: "MEI", idade: 25 },
-        { nome: "Declan Rice", nac: "Inglaterra", liga: "Premier League", time: "Arsenal", pos: "MEI", idade: 25 },
-        { nome: "Bruno Fernandes", nac: "Portugal", liga: "Premier League", time: "Man. United", pos: "MEI", idade: 29 },
-        { nome: "Marcus Rashford", nac: "Inglaterra", liga: "Premier League", time: "Man. United", pos: "ATA", idade: 26 },
-        { nome: "Cole Palmer", nac: "Inglaterra", liga: "Premier League", time: "Chelsea", pos: "MEI", idade: 22 },
-        { nome: "Enzo Fernández", nac: "Argentina", liga: "Premier League", time: "Chelsea", pos: "MEI", idade: 23 },
-        { nome: "Son Heung-min", nac: "Coreia do Sul", liga: "Premier League", time: "Tottenham", pos: "ATA", idade: 32 },
-        { nome: "Lucas Paquetá", nac: "Brasil", liga: "Premier League", time: "West Ham", pos: "MEI", idade: 26 },
-        { nome: "Bruno Guimarães", nac: "Brasil", liga: "Premier League", time: "Newcastle", pos: "MEI", idade: 26 },
+    const ARQUIVO_JSON = 'jogadores.json'; // O nome que você deve colocar no seu arquivo
+    let baseDeJogadores = [];
+    let JOGADOR_SECRETO = null;
 
-        // --- LA LIGA ---
-        { nome: "Vinícius Júnior", nac: "Brasil", liga: "La Liga", time: "Real Madrid", pos: "ATA", idade: 24 },
-        { nome: "Kylian Mbappé", nac: "França", liga: "La Liga", time: "Real Madrid", pos: "ATA", idade: 25 },
-        { nome: "Jude Bellingham", nac: "Inglaterra", liga: "La Liga", time: "Real Madrid", pos: "MEI", idade: 21 },
-        { nome: "Federico Valverde", nac: "Uruguai", liga: "La Liga", time: "Real Madrid", pos: "MEI", idade: 26 },
-        { nome: "Thibaut Courtois", nac: "Bélgica", liga: "La Liga", time: "Real Madrid", pos: "GOL", idade: 32 },
-        { nome: "Lamine Yamal", nac: "Espanha", liga: "La Liga", time: "Barcelona", pos: "ATA", idade: 17 },
-        { nome: "Robert Lewandowski", nac: "Polônia", liga: "La Liga", time: "Barcelona", pos: "ATA", idade: 35 },
-        { nome: "Pedri", nac: "Espanha", liga: "La Liga", time: "Barcelona", pos: "MEI", idade: 21 },
-        { nome: "Gavi", nac: "Espanha", liga: "La Liga", time: "Barcelona", pos: "MEI", idade: 20 },
-        { nome: "Raphinha", nac: "Brasil", liga: "La Liga", time: "Barcelona", pos: "ATA", idade: 27 },
-        { nome: "Antoine Griezmann", nac: "França", liga: "La Liga", time: "Atlético Madrid", pos: "ATA", idade: 33 },
-        { nome: "Jan Oblak", nac: "Eslovênia", liga: "La Liga", time: "Atlético Madrid", pos: "GOL", idade: 31 },
+    // Função para buscar os dados
+    async function carregarDados() {
+        const statusDiv = document.getElementById('status');
+        try {
+            // No GitHub, o fetch funciona sem problemas de CORS
+            const resposta = await fetch(ARQUIVO_JSON);
+            
+            if (!resposta.ok) throw new Error("Não foi possível carregar o arquivo " + ARQUIVO_JSON);
+            
+            const dados = await resposta.json();
+            baseDeJogadores = dados.PlayerData;
 
-        // --- BUNDESLIGA & SERIE A ---
-        { nome: "Harry Kane", nac: "Inglaterra", liga: "Bundesliga", time: "Bayern", pos: "ATA", idade: 31 },
-        { nome: "Jamal Musiala", nac: "Alemanha", liga: "Bundesliga", time: "Bayern", pos: "MEI", idade: 21 },
-        { nome: "Manuel Neuer", nac: "Alemanha", liga: "Bundesliga", time: "Bayern", pos: "GOL", idade: 38 },
-        { nome: "Florian Wirtz", nac: "Alemanha", liga: "Bundesliga", time: "Leverkusen", pos: "MEI", idade: 21 },
-        { nome: "Lautaro Martínez", nac: "Argentina", liga: "Serie A", time: "Inter de Milão", pos: "ATA", idade: 26 },
-        { nome: "Nicolo Barella", nac: "Itália", liga: "Serie A", time: "Inter de Milão", pos: "MEI", idade: 27 },
-        { nome: "Rafael Leão", nac: "Portugal", liga: "Serie A", time: "Milan", pos: "ATA", idade: 25 },
-        { nome: "Dusan Vlahovic", nac: "Sérvia", liga: "Serie A", time: "Juventus", pos: "ATA", idade: 24 },
-        { nome: "Khvicha Kvaratskhelia", nac: "Geórgia", liga: "Serie A", time: "Napoli", pos: "ATA", idade: 23 },
+            if (baseDeJogadores && baseDeJogadores.length > 0) {
+                statusDiv.innerHTML = "✅ " + baseDeJogadores.length + " jogadores carregados!";
+                inicializarJogo();
+            } else {
+                throw new Error("O JSON está vazio ou o formato está incorreto.");
+            }
+        } catch (erro) {
+            statusDiv.innerHTML = "❌ Erro: " + erro.message;
+            statusDiv.style.color = "#ff4444";
+            console.error(erro);
+        }
+    }
 
-        // --- BRASILEIRÃO ---
-        { nome: "Estêvão", nac: "Brasil", liga: "Brasileirão", time: "Palmeiras", pos: "ATA", idade: 17 },
-        { nome: "Raphael Veiga", nac: "Brasil", liga: "Brasileirão", time: "Palmeiras", pos: "MEI", idade: 29 },
-        { nome: "Gustavo Gómez", nac: "Paraguai", liga: "Brasileirão", time: "Palmeiras", pos: "ZAG", idade: 31 },
-        { nome: "Pedro", nac: "Brasil", liga: "Brasileirão", time: "Flamengo", pos: "ATA", idade: 27 },
-        { nome: "Arrascaeta", nac: "Uruguai", liga: "Brasileirão", time: "Flamengo", pos: "MEI", idade: 30 },
-        { nome: "Gerson", nac: "Brasil", liga: "Brasileirão", time: "Flamengo", pos: "MEI", idade: 27 },
-        { nome: "Hulk", nac: "Brasil", liga: "Brasileirão", time: "Atlético-MG", pos: "ATA", idade: 38 },
-        { nome: "Paulistinha", nac: "Brasil", liga: "Brasileirão", time: "Atlético-MG", pos: "ATA", idade: 24 },
-        { nome: "Lucas Moura", nac: "Brasil", liga: "Brasileirão", time: "São Paulo", pos: "ATA", idade: 31 },
-        { nome: "Calleri", nac: "Argentina", liga: "Brasileirão", time: "São Paulo", pos: "ATA", idade: 30 },
-        { nome: "Luis Henrique", nac: "Brasil", liga: "Brasileirão", time: "Botafogo", pos: "ATA", idade: 23 },
-        { nome: "Thiago Silva", nac: "Brasil", liga: "Brasileirão", time: "Fluminense", pos: "ZAG", idade: 39 },
-        { nome: "Jhon Arias", nac: "Colômbia", liga: "Brasileirão", time: "Fluminense", pos: "ATA", idade: 26 },
+    function inicializarJogo() {
+        // Seleciona o jogador secreto aleatoriamente
+        JOGADOR_SECRETO = baseDeJogadores[Math.floor(Math.random() * baseDeJogadores.length)];
+        
+        // Preenche o datalist para o autocomplete
+        const datalist = document.getElementById('listaSugestoes');
+        baseDeJogadores.forEach(j => {
+            const nomeCompleto = (j.Forename + " " + j.Surname).trim();
+            const option = document.createElement('option');
+            option.value = nomeCompleto;
+            datalist.appendChild(option);
+        });
 
-        // --- SAUDI & OUTROS ---
-        { nome: "Cristiano Ronaldo", nac: "Portugal", liga: "Saudi Pro League", time: "Al-Nassr", pos: "ATA", idade: 39 },
-        { nome: "Sadio Mané", nac: "Senegal", liga: "Saudi Pro League", time: "Al-Nassr", pos: "ATA", idade: 32 },
-        { nome: "Neymar Jr", nac: "Brasil", liga: "Saudi Pro League", time: "Al-Hilal", pos: "ATA", idade: 32 },
-        { nome: "Aleksandar Mitrovic", nac: "Sérvia", liga: "Saudi Pro League", time: "Al-Hilal", pos: "ATA", idade: 29 },
-        { nome: "Karim Benzema", nac: "França", liga: "Saudi Pro League", time: "Al-Ittihad", pos: "ATA", idade: 36 },
-        { nome: "Lionel Messi", nac: "Argentina", liga: "MLS", time: "Inter Miami", pos: "ATA", idade: 37 },
-        { nome: "Luis Suárez", nac: "Uruguai", liga: "MLS", time: "Inter Miami", pos: "ATA", idade: 37 }
-        // ... adicionei os principais, você pode seguir esse padrão para chegar a 100!
-    ];
+        // Mostra a interface
+        document.getElementById('game-ui').style.display = 'block';
+    }
 
-    // DEFINIR O JOGADOR DO DIA (Neste exemplo, é o Vini Jr)
-    //const SECRETO = JOGADORES[0];
-    const SECRETO = JOGADORES[Math.floor(Math.random() * JOGADORES.length)];
-
-    // Preencher o datalist com os nomes para o usuário escolher
-    const datalist = document.getElementById('listaJogadores');
-    JOGADORES.forEach(j => {
-        let opt = document.createElement('option');
-        opt.value = j.nome;
-        datalist.appendChild(opt);
-    });
-
-    function chutar() {
+    function fazerPalpite() {
         const input = document.getElementById('inputJogador');
-        const chute = JOGADORES.find(j => j.nome.toLowerCase() === input.value.toLowerCase());
+        const nomeDigitado = input.value.trim().toLowerCase();
+        
+        // Procura o jogador na base
+        const chute = baseDeJogadores.find(j => 
+            (j.Forename + " " + j.Surname).toLowerCase() === nomeDigitado
+        );
 
         if (!chute) {
-            alert("Jogador não encontrado na nossa lista!");
+            alert("Jogador não encontrado! Selecione um nome da lista.");
             return;
         }
 
-        exibirNoGrid(chute);
-        input.value = "";
+        exibirResultado(chute);
+        input.value = ""; // Limpa o campo
     }
 
-    function exibirNoGrid(chute) {
-        const grid = document.getElementById('resultados');
-        const row = document.createElement('div');
-        row.className = 'player-row';
-
-        // Lógica de cores
-        const cNac = chute.nac === SECRETO.nac ? 'correct' : 'wrong';
-        const cLiga = chute.liga === SECRETO.liga ? 'correct' : 'wrong';
-        const cTime = chute.time === SECRETO.time ? 'correct' : 'wrong';
-        const cPos = chute.pos === SECRETO.pos ? 'correct' : 'wrong';
+    function exibirResultado(chute) {
+        const container = document.getElementById('listaResultados');
+        const acertou = (chute.ID === JOGADOR_SECRETO.ID);
         
-        const cIdade = chute.idade === SECRETO.idade ? 'correct' : 'wrong';
-        const seta = chute.idade < SECRETO.idade ? " ⬆️" : (chute.idade > SECRETO.idade ? " ⬇️" : "");
-
-        row.innerHTML = `
-            <div class="box">${chute.nome}</div>
-            <div class="box ${cNac}">${chute.nac}</div>
-            <div class="box ${cLiga}">${chute.liga}</div>
-            <div class="box ${cTime}">${chute.time}</div>
-            <div class="box ${cPos}">${chute.pos}</div>
-            <div class="box ${cIdade}">${chute.idade}${seta}</div>
-        `;
-
-        grid.insertBefore(row, grid.firstChild);
-
-        if (chute.nome === SECRETO.nome) {
-            alert("GOLAÇO! Você acertou o jogador!");
-        }
-    }
-</script>
-</body>
-</html>
+        const card = document.createElement('div');
+        card.className = 'player-card' + (acertou ? ' correct' : '');
